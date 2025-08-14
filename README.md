@@ -146,7 +146,7 @@ Mixpost supports posting to:
 ## ⚙️ Advanced Features
 
 ### Pagination
-When using "Get Many" operation for **post** resource, you can control pagination:
+When using "Get Many" operation for **post** or **media** resource, you can control pagination:
 - **Per Page Limit**: Set how many results to return per page (default is 50, max is 100)
 
 
