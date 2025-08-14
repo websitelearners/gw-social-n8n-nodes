@@ -643,18 +643,17 @@ export class Mixpost implements INodeType {
 				description: 'The UUID of the post to schedule',
 			},
 			{
-				displayName: 'Schedule Date',
-				name: 'scheduleAt',
-				type: 'dateTime',
-				default: '',
-				required: true,
+				displayName: 'Post Now',
+				name: 'postNow',
+				type: 'boolean',
+				default: false,
 				displayOptions: {
 					show: {
 						resource: ['post'],
 						operation: ['schedule'],
 					},
 				},
-				description: 'Date and time to schedule the post',
+				description: 'Whether to post immediately instead of at the scheduled date and time',
 			},
 			// Post Queue
 			{
@@ -701,10 +700,54 @@ export class Mixpost implements INodeType {
 				},
 				description: 'The UUID of the post',
 			},
+			// Post Delete Options
+			{
+				displayName: 'Trash',
+				name: 'trash',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['delete'],
+					},
+				},
+				description: 'Whether to move the post to trash instead of permanently deleting',
+			},
+			{
+				displayName: 'Delete Mode',
+				name: 'delete_mode',
+				type: 'options',
+				options: [
+					{
+						name: 'App Only',
+						value: 'app_only',
+						description: 'Delete only from the app (default)',
+					},
+					{
+						name: 'App and Social',
+						value: 'app_and_social',
+						description: 'Delete from both app and social media platforms',
+					},
+					{
+						name: 'Social Only',
+						value: 'social_only',
+						description: 'Delete only from social media platforms',
+					},
+				],
+				default: 'app_only',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['delete'],
+					},
+				},
+				description: 'Where to delete the post from',
+			},
 			// Post Delete Bulk
 			{
-				displayName: 'Post IDs',
-				name: 'postIds',
+				displayName: 'Post UUIds',
+				name: 'postUuids',
 				type: 'string',
 				default: '',
 				required: true,
@@ -714,7 +757,50 @@ export class Mixpost implements INodeType {
 						operation: ['deleteBulk'],
 					},
 				},
-				description: 'Comma-separated list of post IDs to delete',
+				description: 'Comma-separated list of post UUIds to delete',
+			},
+			{
+				displayName: 'Trash',
+				name: 'trash',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['deleteBulk'],
+					},
+				},
+				description: 'Whether to move the posts to trash instead of permanently deleting',
+			},
+			{
+				displayName: 'Delete Mode',
+				name: 'delete_mode',
+				type: 'options',
+				options: [
+					{
+						name: 'App Only',
+						value: 'app_only',
+						description: 'Delete only from the app (default)',
+					},
+					{
+						name: 'App and Social',
+						value: 'app_and_social',
+						description: 'Delete from both app and social media platforms',
+					},
+					{
+						name: 'Social Only',
+						value: 'social_only',
+						description: 'Delete only from social media platforms',
+					},
+				],
+				default: 'app_only',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['deleteBulk'],
+					},
+				},
+				description: 'Where to delete the posts from',
 			},
 			// Post Update
 			{
@@ -1133,7 +1219,7 @@ export class Mixpost implements INodeType {
 						// Get versions from fixed collection
 						const versionsData = this.getNodeParameter('versions', i) as IDataObject;
 						const versionItems = (versionsData.version as IDataObject[]) || [];
-						console.log(versionItems);
+
 						// Build versions array
 						body.versions = versionItems.map((versionItem, index) => {
 							const version: any = {
@@ -1156,7 +1242,7 @@ export class Mixpost implements INodeType {
 							// Handle content as fixedCollection
 							const contentData = (versionItem.content as IDataObject) || {};
 							const contentItems = (contentData.contentItem as IDataObject[]) || [];
-							console.log(contentItems);
+
 							// Process each content item
 							version.content = contentItems.map((item) => {
 								const contentItem: any = {};
@@ -1190,7 +1276,7 @@ export class Mixpost implements INodeType {
 							// Handle provider options
 							const optionsData = (versionItem.options as IDataObject) || {};
 							const optionItems = (optionsData.option as IDataObject[]) || [];
-							console.log(optionItems);
+
 							if (optionItems.length > 0) {
 								version.options = {};
 
@@ -1239,7 +1325,6 @@ export class Mixpost implements INodeType {
 								.map((id) => parseInt(id.trim()))
 								.filter((id) => !isNaN(id));
 						}
-						console.log(body);
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
 						const postUuid = this.getNodeParameter('postUuid', i) as string;
@@ -1308,33 +1393,50 @@ export class Mixpost implements INodeType {
 						requestMethod = 'DELETE';
 						const postUuid = this.getNodeParameter('postUuid', i) as string;
 						endpoint = `/api/${workspaceUuid}/posts/${postUuid}`;
+
+						// Handle delete options
+						const trash = this.getNodeParameter('trash', i, false) as boolean;
+						if (trash) {
+							body.trash = true;
+						}
+
+						const deleteMode = this.getNodeParameter('delete_mode', i, 'app_only') as string;
+						body.delete_mode = deleteMode;
 					} else if (operation === 'deleteBulk') {
 						requestMethod = 'DELETE';
-						endpoint = `/api/${workspaceUuid}/posts/bulk`;
+						endpoint = `/api/${workspaceUuid}/posts`;
 
-						const postIds = (this.getNodeParameter('postIds', i) as string)
+						const postUuids = (this.getNodeParameter('postUuids', i) as string)
 							.split(',')
 							.map((id) => id.trim());
-						body.post_ids = postIds;
+						body.posts = postUuids;
+
+						// Handle delete options
+						const trash = this.getNodeParameter('trash', i, false) as boolean;
+						if (trash) {
+							body.trash = true;
+						}
+
+						const deleteMode = this.getNodeParameter('delete_mode', i, 'app_only') as string;
+						body.delete_mode = deleteMode;
 					} else if (operation === 'schedule') {
 						requestMethod = 'POST';
-						endpoint = `/api/${workspaceUuid}/posts/schedule`;
-
 						const postUuid = this.getNodeParameter('postUuid', i) as string;
-						body.post_uuid = postUuid;
-						body.schedule_at = this.getNodeParameter('scheduleAt', i) as string;
+						endpoint = `/api/${workspaceUuid}/posts/schedule/${postUuid}`;
+
+						// Handle post now option
+						const postNow = this.getNodeParameter('postNow', i, false) as boolean;
+						if (postNow) {
+							body.postNow = true;
+						}
 					} else if (operation === 'queue') {
 						requestMethod = 'POST';
-						endpoint = `/api/${workspaceUuid}/posts/queue`;
-
 						const postUuid = this.getNodeParameter('postUuid', i) as string;
-						body.post_uuid = postUuid;
+						endpoint = `/api/${workspaceUuid}/posts/add-to-queue/${postUuid}`;
 					} else if (operation === 'approve') {
 						requestMethod = 'POST';
-						endpoint = `/api/${workspaceUuid}/posts/approve`;
-
 						const postUuid = this.getNodeParameter('postUuid', i) as string;
-						body.post_uuid = postUuid;
+						endpoint = `/api/${workspaceUuid}/posts/approve/${postUuid}`;
 					}
 				}
 
