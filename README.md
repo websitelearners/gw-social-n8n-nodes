@@ -70,7 +70,7 @@ Restart n8n to load the new node.
 | **Update** | Update an existing post's content, media, or schedule |
 | **Delete** | Delete a single post |
 | **Delete Bulk** | Delete multiple posts at once |
-| **Schedule** | Schedule a post for a specific date/time |
+| **Schedule** | Schedule a post |
 | **Add to Queue** | Add a post to the publishing queue |
 | **Approve** | Approve a post for publishing |
 
@@ -83,10 +83,10 @@ Restart n8n to load the new node.
 ### 🖼️ Media
 | Operation | Description |
 |-----------|-------------|
-| **Upload** | Upload images, videos, or other media files |
+| **Upload** | Upload images or videos |
 | **Get** | Retrieve a specific media file by UUID |
 | **Get Many** | List all media files in your workspace |
-| **Update** | Update media file metadata (name, description) |
+| **Update** | Update media file data (Alt Text) |
 | **Delete** | Delete a media file from your workspace |
 
 ### 🏷️ Tags
