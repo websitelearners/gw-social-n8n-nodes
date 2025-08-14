@@ -4,7 +4,7 @@ This is an n8n community node that lets you integrate [Mixpost](https://mixpost.
 
 Mixpost is a self-hosted social media management software that helps you schedule and manage your social media content across multiple platforms including Facebook, Twitter/X, Instagram, LinkedIn, Pinterest, TikTok, YouTube, and more.
 
-[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
+[n8n](https://n8n.io/) is a workflow automation platform.
 
 ## 🚀 Installation
 
@@ -44,7 +44,7 @@ Restart your n8n instance to load the new node.
 
 #### Non-Docker Installation
 
-1. Navigate to ` ~/.n8n`, and check if a `custom` folder exists. If not, create it, then add a new package.json file inside.
+Navigate to ` ~/.n8n`, and check if a `custom` folder exists. If not, create it, then add a new package.json file inside.
 
 ```bash
 mkdir -p ~/.n8n/custom
@@ -106,7 +106,8 @@ Restart n8n to load the new node.
 
 ### Steps to Configure
 
-1. **Generate API Token in Mixpost:** - Read the [Mixpost API documentation](https://docs.mixpost.app/api/#generate-a-token) to learn how to generate an API token.
+1. **Generate API Token in Mixpost:** 
+   - Read the [Mixpost API documentation](https://docs.mixpost.app/api/#generate-a-token) to learn how to generate an API token.
 2. **Configure in n8n:**
    - In n8n, go to **Overview** → **Create Workflow**
    - Open nodes panel
