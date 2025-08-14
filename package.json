@@ -1,32 +1,32 @@
 {
   "name": "n8n-nodes-mixpost",
   "version": "0.1.0",
-  "description": "n8n nodes for Mixpost social media management",
+  "description": "This is an n8n community node. It lets you use Mixpost in your n8n workflows.",
   "keywords": [
-    "n8n",
-    "n8n-community-node-package",
-    "mixpost",
-    "social-media",
-    "automation"
+    "social media",
+    "social media scheduler",
+    "social media posting tool",
+    "automated social media posting",
+    "n8n-community-node-package"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/yourusername/n8n-nodes-mixpost",
+  "homepage": "https://mixpost.app",
   "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com"
+    "name": "Botezatu Dima",
+    "email": "dima@inovector.com"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/n8n-nodes-mixpost.git"
+    "url": "git+https://github.com/inovector/n8n-nodes-mixpost.git"
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && gulp build:icons",
+    "build": "npx rimraf dist && tsc && gulp build:icons",
     "dev": "tsc --watch",
     "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes/**/*.ts credentials/**/*.ts",
-    "lintfix": "eslint nodes/**/*.ts credentials/**/*.ts --fix",
-    "prepublishOnly": "npm run build && npm run lint"
+    "lint": "eslint nodes credentials package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
   },
   "files": [
     "dist"
