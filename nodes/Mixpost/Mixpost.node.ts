@@ -282,7 +282,7 @@ export class Mixpost implements INodeType {
 				displayName: 'File',
 				name: 'file',
 				type: 'string',
-				default: 'data',
+				default: '',
 				required: true,
 				displayOptions: {
 					show: {
@@ -614,27 +614,13 @@ export class Mixpost implements INodeType {
 			},
 			// Post Get All
 			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['post'],
-						operation: ['getAll'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
+				displayName: 'Per Page Limit',
 				name: 'limit',
 				type: 'number',
 				displayOptions: {
 					show: {
 						resource: ['post'],
 						operation: ['getAll'],
-						returnAll: [false],
 					},
 				},
 				typeOptions: {
@@ -657,6 +643,27 @@ export class Mixpost implements INodeType {
 				},
 				options: [
 					{
+						displayName: 'Account IDs',
+						name: 'accounts',
+						type: 'string',
+						default: '',
+						description: 'Filter posts by account IDs (comma-separated list)',
+					},
+					{
+						displayName: 'Keyword',
+						name: 'keyword',
+						type: 'string',
+						default: '',
+						description: 'Filter posts by keyword in content',
+					},
+					{
+						displayName: 'Page',
+						name: 'page',
+						type: 'number',
+						default: 1,
+						description: 'Page number for pagination',
+					},
+					{
 						displayName: 'Status',
 						name: 'status',
 						type: 'options',
@@ -666,106 +673,100 @@ export class Mixpost implements INodeType {
 								value: 'draft',
 							},
 							{
-								name: 'Scheduled',
-								value: 'scheduled',
+								name: 'Failed',
+								value: 'failed',
+							},
+							{
+								name: 'Needs Approval',
+								value: 'needs_approval',
+							},
+							{
+								name: 'Only From Trash',
+								value: 'trash',
 							},
 							{
 								name: 'Published',
 								value: 'published',
 							},
 							{
-								name: 'Failed',
-								value: 'failed',
+								name: 'Scheduled',
+								value: 'scheduled',
 							},
 						],
 						default: 'draft',
 						description: 'Filter posts by status',
 					},
 					{
-						displayName: 'Account ID',
-						name: 'accountId',
+						displayName: 'Tags',
+						name: 'tags',
 						type: 'string',
 						default: '',
-						description: 'Filter posts by account ID',
-					},
-					{
-						displayName: 'Tag',
-						name: 'tag',
-						type: 'string',
-						default: '',
-						description: 'Filter posts by tag',
-					},
-					{
-						displayName: 'Page',
-						name: 'page',
-						type: 'number',
-						default: 1,
-						description: 'Page number for pagination',
+						description: 'Filter posts by tags (comma-separated list)',
 					},
 				],
 			},
 			// Media/Tag Get All
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['media', 'tag'],
-						operation: ['getAll'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['media', 'tag'],
-						operation: ['getAll'],
-						returnAll: [false],
-					},
-				},
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 50,
-				description: 'Max number of results to return',
-			},
+			// {
+			// 	displayName: 'Return All',
+			// 	name: 'returnAll',
+			// 	type: 'boolean',
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['media', 'tag'],
+			// 			operation: ['getAll'],
+			// 		},
+			// 	},
+			// 	default: false,
+			// 	description: 'Whether to return all results or only up to a given limit',
+			// },
+			// {
+			// 	displayName: 'Limit',
+			// 	name: 'limit',
+			// 	type: 'number',
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['media', 'tag'],
+			// 			operation: ['getAll'],
+			// 			returnAll: [false],
+			// 		},
+			// 	},
+			// 	typeOptions: {
+			// 		minValue: 1,
+			// 	},
+			// 	default: 50,
+			// 	description: 'Max number of results to return',
+			// },
 			// Account Get All
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['account'],
-						operation: ['getAll'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['account'],
-						operation: ['getAll'],
-						returnAll: [false],
-					},
-				},
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 50,
-				description: 'Max number of results to return',
-			},
+			// {
+			// 	displayName: 'Return All',
+			// 	name: 'returnAll',
+			// 	type: 'boolean',
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['account'],
+			// 			operation: ['getAll'],
+			// 		},
+			// 	},
+			// 	default: false,
+			// 	description: 'Whether to return all results or only up to a given limit',
+			// },
+			// {
+			// 	displayName: 'Limit',
+			// 	name: 'limit',
+			// 	type: 'number',
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['account'],
+			// 			operation: ['getAll'],
+			// 			returnAll: [false],
+			// 		},
+			// 	},
+			// 	typeOptions: {
+			// 		minValue: 1,
+			// 	},
+			// 	default: 50,
+			// 	description: 'Max number of results to return',
+			// },
 		],
 	};
 
@@ -798,21 +799,11 @@ export class Mixpost implements INodeType {
 					} else if (operation === 'getAll') {
 						requestMethod = 'GET';
 						endpoint = `/api/${workspaceUuid}/accounts`;
-
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						if (!returnAll) {
-							qs.limit = this.getNodeParameter('limit', i) as number;
-						}
 					}
 				} else if (resource === 'media') {
 					if (operation === 'getAll') {
 						requestMethod = 'GET';
 						endpoint = `/api/${workspaceUuid}/media`;
-
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						if (!returnAll) {
-							qs.limit = this.getNodeParameter('limit', i) as number;
-						}
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
 						const mediaUuid = this.getNodeParameter('mediaUuid', i) as string;
@@ -866,11 +857,6 @@ export class Mixpost implements INodeType {
 					if (operation === 'getAll') {
 						requestMethod = 'GET';
 						endpoint = `/api/${workspaceUuid}/tags`;
-
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						if (!returnAll) {
-							qs.limit = this.getNodeParameter('limit', i) as number;
-						}
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
 						const tagUuid = this.getNodeParameter('tagUuid', i) as string;
@@ -931,20 +917,35 @@ export class Mixpost implements INodeType {
 						requestMethod = 'GET';
 						endpoint = `/api/${workspaceUuid}/posts`;
 
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						if (!returnAll) {
-							qs.limit = this.getNodeParameter('limit', i) as number;
-						}
+						qs.limit = this.getNodeParameter('limit', i) as number;
 
 						const filters = this.getNodeParameter('filters', i) as IDataObject;
+
 						if (filters.status) {
 							qs.status = filters.status;
 						}
-						if (filters.accountId) {
-							qs.account_id = filters.accountId;
+						if (filters.keyword) {
+							qs.keyword = filters.keyword;
 						}
-						if (filters.tag) {
-							qs.tag = filters.tag;
+						if (filters.accounts) {
+							// Convert comma-separated string to array
+							const accountIds = (filters.accounts as string)
+								.split(',')
+								.map(id => id.trim())
+								.filter(id => id);
+							if (accountIds.length > 0) {
+								qs.accounts = accountIds;
+							}
+						}
+						if (filters.tags) {
+							// Convert comma-separated string to array
+							const tagNames = (filters.tags as string)
+								.split(',')
+								.map(tag => tag.trim())
+								.filter(tag => tag);
+							if (tagNames.length > 0) {
+								qs.tags = tagNames;
+							}
 						}
 						if (filters.page) {
 							qs.page = filters.page;
