@@ -320,18 +320,11 @@ export class Mixpost implements INodeType {
 				},
 				options: [
 					{
-						displayName: 'Name',
-						name: 'name',
+						displayName: 'Alt Text',
+						name: 'alt_text',
 						type: 'string',
 						default: '',
-						description: 'The name of the media file',
-					},
-					{
-						displayName: 'Description',
-						name: 'description',
-						type: 'string',
-						default: '',
-						description: 'Description of the media file',
+						description: 'Alt text for the media file',
 					},
 				],
 			},
@@ -875,11 +868,8 @@ export class Mixpost implements INodeType {
 						endpoint = `/api/${workspaceUuid}/media/${mediaUuid}`;
 
 						const updateFields = this.getNodeParameter('updateFields', i) as IDataObject;
-						if (updateFields.name) {
-							body.name = updateFields.name;
-						}
-						if (updateFields.description) {
-							body.description = updateFields.description;
+						if (updateFields.alt_text) {
+							body.alt_text = updateFields.alt_text;
 						}
 					} else if (operation === 'delete') {
 						requestMethod = 'DELETE';
