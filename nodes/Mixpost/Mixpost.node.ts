@@ -719,6 +719,23 @@ export class Mixpost implements INodeType {
 					},
 				],
 			},
+			// Media Get All
+			{
+				displayName: 'Per Page Limit',
+				name: 'limit',
+				type: 'number',
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['getAll'],
+					},
+				},
+				typeOptions: {
+					minValue: 1,
+				},
+				default: 50,
+				description: 'Max number of results to return',
+			},
 			// Media/Tag Get All
 			// {
 			// 	displayName: 'Return All',
@@ -818,6 +835,8 @@ export class Mixpost implements INodeType {
 					if (operation === 'getAll') {
 						requestMethod = 'GET';
 						endpoint = `/api/${workspaceUuid}/media`;
+
+						qs.limit = this.getNodeParameter('limit', i) as number;
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
 						const mediaUuid = this.getNodeParameter('mediaUuid', i) as string;
@@ -865,7 +884,7 @@ export class Mixpost implements INodeType {
 					} else if (operation === 'delete') {
 						requestMethod = 'DELETE';
 						endpoint = `/api/${workspaceUuid}/media`;
-						
+
 						const mediaIds = (this.getNodeParameter('mediaIds', i) as string)
 							.split(',')
 							.map((id) => id.trim())
@@ -950,8 +969,8 @@ export class Mixpost implements INodeType {
 							// Convert comma-separated string to array
 							const accountIds = (filters.accounts as string)
 								.split(',')
-								.map(id => id.trim())
-								.filter(id => id);
+								.map((id) => id.trim())
+								.filter((id) => id);
 							if (accountIds.length > 0) {
 								qs.accounts = accountIds;
 							}
@@ -960,8 +979,8 @@ export class Mixpost implements INodeType {
 							// Convert comma-separated string to array
 							const tagNames = (filters.tags as string)
 								.split(',')
-								.map(tag => tag.trim())
-								.filter(tag => tag);
+								.map((tag) => tag.trim())
+								.filter((tag) => tag);
 							if (tagNames.length > 0) {
 								qs.tags = tagNames;
 							}
