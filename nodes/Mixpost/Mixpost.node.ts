@@ -410,13 +410,32 @@ export class Mixpost implements INodeType {
 			},
 			// Post Create
 			{
-				displayName: 'Content',
-				name: 'content',
-				type: 'string',
-				typeOptions: {
-					rows: 5,
-				},
-				default: '',
+				displayName: 'Type',
+				name: 'postType',
+				type: 'options',
+				options: [
+					{
+						name: 'Draft',
+						value: 'draft',
+						description: 'Save as draft without scheduling',
+					},
+					{
+						name: 'Schedule',
+						value: 'schedule',
+						description: 'Schedule the post for a specific date and time',
+					},
+					{
+						name: 'Schedule Now',
+						value: 'schedule_now',
+						description: 'Publish the post immediately',
+					},
+					{
+						name: 'Add to Queue',
+						value: 'queue',
+						description: 'Add the post to the publishing queue',
+					},
+				],
+				default: 'draft',
 				required: true,
 				displayOptions: {
 					show: {
@@ -424,7 +443,37 @@ export class Mixpost implements INodeType {
 						operation: ['create'],
 					},
 				},
-				description: 'The content of the post',
+				description: 'How to handle the post',
+			},
+			{
+				displayName: 'Date & Time',
+				name: 'date',
+				type: 'dateTime',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['create'],
+						postType: ['schedule'],
+					},
+				},
+				description: 'The date and time to schedule the post',
+			},
+			{
+				displayName: 'Timezone',
+				name: 'timezone',
+				type: 'string',
+				default: '',
+				placeholder: 'America/New_York',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['create'],
+						postType: ['schedule'],
+					},
+				},
+				description: 'Timezone for the scheduled post (defaults to user profile timezone)',
 			},
 			{
 				displayName: 'Account IDs',
@@ -441,38 +490,140 @@ export class Mixpost implements INodeType {
 				description: 'Comma-separated list of account IDs to post to',
 			},
 			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				default: {},
+				displayName: 'Tag IDs',
+				name: 'tagIds',
+				type: 'string',
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['post'],
 						operation: ['create'],
 					},
 				},
+				description: 'Comma-separated list of tag IDs',
+			},
+			{
+				displayName: 'Versions',
+				name: 'versions',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['create'],
+					},
+				},
+				description: 'Content versions for different accounts',
+				placeholder: 'Add Version',
 				options: [
 					{
-						displayName: 'Schedule Date',
-						name: 'scheduleAt',
-						type: 'dateTime',
-						default: '',
-						description: 'Date and time to schedule the post',
-					},
-					{
-						displayName: 'Media URLs',
-						name: 'media',
-						type: 'string',
-						default: '',
-						description: 'Comma-separated list of media URLs to attach',
-					},
-					{
-						displayName: 'Tags',
-						name: 'tags',
-						type: 'string',
-						default: '',
-						description: 'Comma-separated list of tags',
+						name: 'version',
+						displayName: 'Version',
+						values: [
+							{
+								displayName: 'Account ID',
+								name: 'account_id',
+								type: 'number',
+								default: 0,
+								description: 'The account ID for this version (0 for first version)',
+							},
+							{
+								displayName: 'Is Original',
+								name: 'is_original',
+								type: 'boolean',
+								default: true,
+								description: 'Whether this is the original version (true for first version)',
+							},
+							{
+								displayName: 'Content',
+								name: 'content',
+								type: 'fixedCollection',
+								typeOptions: {
+									multipleValues: true,
+								},
+								placeholder: 'Add Content Item',
+								default: {},
+								description: 'Content items for this version',
+								options: [
+									{
+										name: 'contentItem',
+										displayName: 'Content Item',
+										values: [
+											{
+												displayName: 'Body',
+												name: 'body',
+												type: 'string',
+												typeOptions: {
+													rows: 5,
+												},
+												default: '',
+												description: 'The text content of the post',
+											},
+											{
+												displayName: 'Media IDs',
+												name: 'media',
+												type: 'string',
+												default: '',
+												description: 'Comma-separated list of media IDs',
+											},
+											{
+												displayName: 'URL',
+												name: 'url',
+												type: 'string',
+												default: '',
+												description: 'URL to include in the post',
+											},
+										],
+									},
+								],
+							},
+							{
+								displayName: 'Options',
+								name: 'options',
+								type: 'fixedCollection',
+								typeOptions: {
+									multipleValues: true,
+								},
+								placeholder: 'Add Option',
+								default: {},
+								description: 'Provider-specific options',
+								options: [
+									{
+										name: 'option',
+										displayName: 'Option',
+										values: [
+											{
+												displayName: 'Provider',
+												name: 'provider',
+												type: 'string',
+												default: '',
+												placeholder: 'mastodon',
+												description: 'Provider name (e.g., mastodon, twitter)',
+											},
+											{
+												displayName: 'Key',
+												name: 'key',
+												type: 'string',
+												default: '',
+												placeholder: 'sensitive',
+												description: 'Option key',
+											},
+											{
+												displayName: 'Value',
+												name: 'value',
+												type: 'string',
+												default: '',
+												description: 'Option value (string, number, or boolean)',
+											},
+										],
+									},
+								],
+							},
+						],
 					},
 				],
 			},
@@ -921,22 +1072,174 @@ export class Mixpost implements INodeType {
 						requestMethod = 'POST';
 						endpoint = `/api/${workspaceUuid}/posts`;
 
-						body.content = this.getNodeParameter('content', i) as string;
-						const accountIds = (this.getNodeParameter('accountIds', i) as string)
-							.split(',')
-							.map((id) => id.trim());
-						body.account_ids = accountIds;
+						// Get post type
+						const postType = this.getNodeParameter('postType', i) as string;
 
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-						if (additionalFields.scheduleAt) {
-							body.schedule_at = additionalFields.scheduleAt;
+						// Handle date and time based on post type
+						let dateStr = '';
+						let timeStr = '';
+
+						if (postType === 'schedule') {
+							// Parse date and time from the datetime input
+							const dateTimeInput = this.getNodeParameter('date', i) as string;
+							const dateObj = new Date(dateTimeInput);
+
+							// Format date as Y-m-d and time as H:i
+							const year = dateObj.getFullYear();
+							const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+							const day = String(dateObj.getDate()).padStart(2, '0');
+							const hours = String(dateObj.getHours()).padStart(2, '0');
+							const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+
+							dateStr = `${year}-${month}-${day}`;
+							timeStr = `${hours}:${minutes}`;
+							body.schedule = true;
+
+							if (dateStr && timeStr) {
+								body.date = dateStr;
+								body.time = timeStr;
+							}
+
+							const timezone = this.getNodeParameter('timezone', i, '') as string;
+							if (timezone) {
+								body.timezone = timezone;
+							}
+						} else {
+							// For non-scheduled posts, use current date/time
+							// const now = new Date();
+							// const year = now.getFullYear();
+							// const month = String(now.getMonth() + 1).padStart(2, '0');
+							// const day = String(now.getDate()).padStart(2, '0');
+							// const hours = String(now.getHours()).padStart(2, '0');
+							// const minutes = String(now.getMinutes()).padStart(2, '0');
+
+							// dateStr = `${year}-${month}-${day}`;
+							// timeStr = `${hours}:${minutes}`;
+
+							// Set appropriate flags based on type
+							if (postType === 'schedule_now') {
+								body.schedule_now = true;
+							} else if (postType === 'queue') {
+								body.queue = true;
+							}
+							// 'draft' doesn't need any special flag
 						}
-						if (additionalFields.media) {
-							body.media = (additionalFields.media as string).split(',').map((url) => url.trim());
+
+						if (dateStr && timeStr) {
+							body.date = dateStr;
+							body.time = timeStr;
 						}
-						if (additionalFields.tags) {
-							body.tags = (additionalFields.tags as string).split(',').map((tag) => tag.trim());
+
+						// Get versions from fixed collection
+						const versionsData = this.getNodeParameter('versions', i) as IDataObject;
+						const versionItems = (versionsData.version as IDataObject[]) || [];
+						console.log(versionItems);
+						// Build versions array
+						body.versions = versionItems.map((versionItem, index) => {
+							const version: any = {
+								// Apply defaults for first version only
+								account_id:
+									versionItem.account_id !== undefined
+										? versionItem.account_id
+										: index === 0
+										? 0
+										: null,
+								is_original:
+									versionItem.is_original !== undefined
+										? versionItem.is_original
+										: index === 0
+										? true
+										: false,
+								content: [],
+							};
+
+							// Handle content as fixedCollection
+							const contentData = (versionItem.content as IDataObject) || {};
+							const contentItems = (contentData.contentItem as IDataObject[]) || [];
+							console.log(contentItems);
+							// Process each content item
+							version.content = contentItems.map((item) => {
+								const contentItem: any = {};
+
+								if (item.body !== undefined && item.body !== '') {
+									contentItem.body = item.body;
+								}
+
+								if (item.url !== undefined && item.url !== '') {
+									contentItem.url = item.url;
+								}
+
+								// Handle media IDs - convert comma-separated string to array of numbers
+								if (item.media !== undefined && item.media !== '') {
+									contentItem.media = (item.media as string)
+										.split(',')
+										.map((id) => parseInt(id.trim()))
+										.filter((id) => !isNaN(id));
+								} else {
+									contentItem.media = [];
+								}
+
+								return contentItem;
+							});
+
+							// If no content items provided, add an empty content array
+							if (version.content.length === 0) {
+								version.content = [{ body: '', media: [] }];
+							}
+
+							// Handle provider options
+							const optionsData = (versionItem.options as IDataObject) || {};
+							const optionItems = (optionsData.option as IDataObject[]) || [];
+							console.log(optionItems);
+							if (optionItems.length > 0) {
+								version.options = {};
+
+								// Group options by provider and key
+								optionItems.forEach((optionItem) => {
+									const provider = optionItem.provider as string;
+									const key = optionItem.key as string;
+									let value = optionItem.value as string;
+
+									if (provider && key) {
+										if (!version.options[provider]) {
+											version.options[provider] = {};
+										}
+
+										// Try to parse value as boolean or number
+										if (value === 'true') {
+											version.options[provider][key] = true;
+										} else if (value === 'false') {
+											version.options[provider][key] = false;
+										} else if (!isNaN(Number(value))) {
+											version.options[provider][key] = Number(value);
+										} else {
+											version.options[provider][key] = value;
+										}
+									}
+								});
+							}
+
+							return version;
+						});
+
+						// Handle accounts array from main field
+						const accountIds = this.getNodeParameter('accountIds', i) as string;
+						if (accountIds) {
+							body.accounts = accountIds
+								.split(',')
+								.map((id) => parseInt(id.trim()))
+								.filter((id) => !isNaN(id));
 						}
+
+						// Handle tags array from main field
+						const tagIds = this.getNodeParameter('tagIds', i, '') as string;
+						if (tagIds) {
+							body.tags = tagIds
+								.split(',')
+								.map((id) => parseInt(id.trim()))
+								.filter((id) => !isNaN(id));
+						}
+						console.log(body);
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
 						const postUuid = this.getNodeParameter('postUuid', i) as string;
