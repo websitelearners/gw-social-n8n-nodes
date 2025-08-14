@@ -372,7 +372,7 @@ export class Mixpost implements INodeType {
 				options: [
 					{
 						displayName: 'Color',
-						name: 'color',
+						name: 'hex_color',
 						type: 'color',
 						default: '',
 						description: 'The color of the tag (hex format)',
@@ -401,7 +401,7 @@ export class Mixpost implements INodeType {
 					},
 					{
 						displayName: 'Color',
-						name: 'color',
+						name: 'hex_color',
 						type: 'color',
 						default: '',
 						description: 'The color of the tag (hex format)',
@@ -896,8 +896,8 @@ export class Mixpost implements INodeType {
 						body.name = this.getNodeParameter('name', i) as string;
 
 						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-						if (additionalFields.color) {
-							body.color = additionalFields.color;
+						if (additionalFields.hex_color) {
+							body.hex_color = additionalFields.hex_color;
 						}
 					} else if (operation === 'update') {
 						requestMethod = 'PUT';
@@ -908,8 +908,8 @@ export class Mixpost implements INodeType {
 						if (updateFields.name) {
 							body.name = updateFields.name;
 						}
-						if (updateFields.color) {
-							body.color = updateFields.color;
+						if (updateFields.hex_color) {
+							body.hex_color = updateFields.hex_color;
 						}
 					} else if (operation === 'delete') {
 						requestMethod = 'DELETE';
@@ -1068,12 +1068,66 @@ export class Mixpost implements INodeType {
 				} else {
 					returnData.push(responseData);
 				}
-			} catch (error) {
+			} catch (error: any) {
 				if (this.continueOnFail()) {
-					const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-					returnData.push({ error: errorMessage });
+					let errorMessage = 'An unknown error occurred';
+					let errorDetails = {};
+
+					if (error instanceof Error) {
+						errorMessage = error.message;
+					}
+
+					// Handle HTTP errors with detailed validation responses
+					if (error.response) {
+						const statusCode = error.response.status;
+						errorMessage = `HTTP ${statusCode}: ${error.response.statusText || 'Request failed'}`;
+
+						// Laravel validation errors (422) usually contain detailed field errors
+						if (error.response.data) {
+							if (statusCode === 422 && error.response.data.errors) {
+								// Laravel validation errors format
+								errorDetails = {
+									validationErrors: error.response.data.errors,
+									message: error.response.data.message || 'Validation failed',
+								};
+								errorMessage = `Validation Error: ${
+									error.response.data.message || 'The given data was invalid'
+								}`;
+							} else if (error.response.data.message) {
+								// Other Laravel errors with message
+								errorMessage = `${errorMessage} - ${error.response.data.message}`;
+								errorDetails = error.response.data;
+							} else if (typeof error.response.data === 'string') {
+								errorMessage = `${errorMessage} - ${error.response.data}`;
+							} else {
+								errorDetails = error.response.data;
+							}
+						}
+					}
+
+					returnData.push({
+						error: errorMessage,
+						...(Object.keys(errorDetails).length > 0 && { errorDetails }),
+					});
 					continue;
 				}
+
+				// Enhanced error for non-continue-on-fail mode
+				if (error.response && error.response.status === 422 && error.response.data?.errors) {
+					const validationErrors = error.response.data.errors;
+					const fieldErrors = Object.entries(validationErrors)
+						.map(([field, errors]) => `${field}: ${(errors as string[]).join(', ')}`)
+						.join('; ');
+
+					throw new NodeOperationError(
+						this.getNode(),
+						`Validation Error: ${
+							error.response.data.message || 'The given data was invalid.'
+						} - ${fieldErrors}`,
+						{ itemIndex: i },
+					);
+				}
+
 				throw error;
 			}
 		}
