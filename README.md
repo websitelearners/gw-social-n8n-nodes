@@ -146,15 +146,16 @@ Mixpost supports posting to:
 ## ⚙️ Advanced Features
 
 ### Pagination
-When using "Get Many" operations, you can control pagination:
-- **Return All**: Fetch all results (use with caution for large datasets)
-- **Page**: Navigate through paginated results
+When using "Get Many" operations for posts, you can control pagination:
+- **Per Page Limit**: Set how many results to return per page (default is 50, max is 100)
+
 
 ### Filtering
 Posts can be filtered by:
 - **Status**: draft, scheduled, published, failed
 - **Account ID**: Filter by specific social account
 - **Tag**: Filter by tag name
+- **Page**: Navigate through paginated results
 
 ## 🛠️ Development
 
