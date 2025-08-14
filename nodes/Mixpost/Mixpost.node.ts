@@ -273,10 +273,24 @@ export class Mixpost implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['media'],
-						operation: ['get', 'delete', 'update'],
+						operation: ['get', 'update'],
 					},
 				},
 				description: 'The UUID of the media file',
+			},
+			{
+				displayName: 'Media IDs',
+				name: 'mediaIds',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['delete'],
+					},
+				},
+				description: 'Comma-separated list of media IDs to delete',
 			},
 			{
 				displayName: 'File',
@@ -850,8 +864,13 @@ export class Mixpost implements INodeType {
 						}
 					} else if (operation === 'delete') {
 						requestMethod = 'DELETE';
-						const mediaUuid = this.getNodeParameter('mediaUuid', i) as string;
-						endpoint = `/api/${workspaceUuid}/media/${mediaUuid}`;
+						endpoint = `/api/${workspaceUuid}/media`;
+						
+						const mediaIds = (this.getNodeParameter('mediaIds', i) as string)
+							.split(',')
+							.map((id) => id.trim())
+							.filter((id) => id);
+						body.items = mediaIds;
 					}
 				} else if (resource === 'tag') {
 					if (operation === 'getAll') {
