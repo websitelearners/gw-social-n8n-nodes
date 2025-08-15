@@ -8,7 +8,7 @@ import {
 export class MixpostApi implements ICredentialType {
 	name = 'mixpostApi';
 	displayName = 'Mixpost API';
-	documentationUrl = 'https://mixpost.io/docs/api';
+	documentationUrl = 'https://docs.mixpost.app/api/';
 	properties: INodeProperties[] = [
 		{
 			displayName: 'Mixpost URL',
