@@ -10,21 +10,21 @@ import {
 
 export class Mixpost implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'GravitySocial',
-		name: 'GravitySocial',
-		icon: 'file:gravitywrite.svg',
+		displayName: 'Mixpost',
+		name: 'mixpost',
+		icon: 'file:mixpost.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Interact with GravitySocial API',
+		description: 'Interact with Mixpost API',
 		defaults: {
-			name: 'GravitySocial',
+			name: 'Mixpost',
 		},
 		inputs: [NodeConnectionType.Main],
 		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
-				name: 'gravitysocialApi',
+				name: 'mixpostApi',
 				required: true,
 			},
 		],
@@ -1034,7 +1034,7 @@ export class Mixpost implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: IDataObject[] = [];
-		const credentials = await this.getCredentials('gravitysocialApi');
+		const credentials = await this.getCredentials('mixpostApi');
 
 		const resource = this.getNodeParameter('resource', 0);
 		const operation = this.getNodeParameter('operation', 0);
