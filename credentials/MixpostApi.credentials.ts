@@ -6,19 +6,19 @@ import {
 } from 'n8n-workflow';
 
 export class MixpostApi implements ICredentialType {
-	name = 'mixpostApi';
-	displayName = 'Mixpost API';
+	name = 'gravitysocialApi';
+	displayName = 'GravitySocial API';
 	documentationUrl = 'https://docs.mixpost.app/api/';
 	properties: INodeProperties[] = [
 		{
-			displayName: 'Mixpost URL',
+			displayName: 'GravitySocial URL',
 			name: 'url',
 			type: 'string',
 			default: '',
-			placeholder: 'https://your-mixpost-instance.com/mixpost',
+			placeholder: 'https://your-gravitysocial-instance.com/gravitysocial',
 			required: true,
 			description:
-				'The base URL of your Mixpost instance and core path. Example: <code>https://your-mixpost-instance.com/mixpost</code>',
+				'The base URL of your GravitySocial instance and core path. Example: <code>https://your-gravitysocial-instance.com/gravitysocial</code>',
 		},
 		{
 			displayName: 'Access Token',
