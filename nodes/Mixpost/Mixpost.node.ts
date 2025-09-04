@@ -10,9 +10,9 @@ import {
 
 export class Mixpost implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Mixpost',
+		displayName: 'GravitySocial',
 		name: 'mixpost',
-		icon: 'file:mixpost.svg',
+		icon: 'file:gravitywrite.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
