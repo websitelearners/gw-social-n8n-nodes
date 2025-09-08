@@ -7,7 +7,7 @@ import {
 
 export class MixpostApi implements ICredentialType {
 	name = 'mixpostApi';
-	displayName = 'Mixpost API';
+	displayName = 'GravitySocial API';
 	documentationUrl = 'https://docs.mixpost.app/api/';
 	properties: INodeProperties[] = [
 		{
