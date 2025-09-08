@@ -16,7 +16,7 @@ export class Mixpost implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Interact with Mixpost API',
+		description: 'Interact with GravitySocial API',
 		defaults: {
 			name: 'Mixpost',
 		},
