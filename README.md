@@ -115,7 +115,7 @@ Restart n8n to load the new node.
    - Add an **Mixpost** action to your workflow
    - Click on **Credentials** → **Create new credential**
    - Enter the following:
-     - **Mixpost URL**: Your Mixpost instance URL with core path (e.g., `https://mixpost.yourdomain.com/mixpost`)
+     - **Mixpost URL**: Your Mixpost instance URL with core path (e.g., `https://social.gravitywrite.com`)
      - **Access Token**: The token you generated in step 1
    - Click **Save**
 
