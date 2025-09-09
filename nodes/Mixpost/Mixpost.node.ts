@@ -1161,10 +1161,12 @@ export class Mixpost implements INodeType {
 						// Get post type
 						const postType = this.getNodeParameter('postType', i) as string;
 
-						// Handle date and time based on post type
-						let dateStr = '';
-						let timeStr = '';
+						// Initialize all scheduling flags to false (important!)
+						body.schedule = false;
+						body.schedule_now = false;
+						body.queue = false;
 
+						// Handle date and time based on post type
 						if (postType === 'schedule') {
 							// Parse date and time from the datetime input
 							const dateTimeInput = this.getNodeParameter('date', i) as string;
@@ -1177,43 +1179,50 @@ export class Mixpost implements INodeType {
 							const hours = String(dateObj.getHours()).padStart(2, '0');
 							const minutes = String(dateObj.getMinutes()).padStart(2, '0');
 
-							dateStr = `${year}-${month}-${day}`;
-							timeStr = `${hours}:${minutes}`;
+							body.date = `${year}-${month}-${day}`;
+							body.time = `${hours}:${minutes}`;
 							body.schedule = true;
-
-							if (dateStr && timeStr) {
-								body.date = dateStr;
-								body.time = timeStr;
-							}
 
 							const timezone = this.getNodeParameter('timezone', i, '') as string;
 							if (timezone) {
 								body.timezone = timezone;
 							}
+						} else if (postType === 'schedule_now') {
+							// For schedule_now, we need current date/time
+							const now = new Date();
+							const year = now.getFullYear();
+							const month = String(now.getMonth() + 1).padStart(2, '0');
+							const day = String(now.getDate()).padStart(2, '0');
+							const hours = String(now.getHours()).padStart(2, '0');
+							const minutes = String(now.getMinutes()).padStart(2, '0');
+
+							body.date = `${year}-${month}-${day}`;
+							body.time = `${hours}:${minutes}`;
+							body.schedule_now = true;
+						} else if (postType === 'queue') {
+							// For queue, we need current date/time
+							const now = new Date();
+							const year = now.getFullYear();
+							const month = String(now.getMonth() + 1).padStart(2, '0');
+							const day = String(now.getDate()).padStart(2, '0');
+							const hours = String(now.getHours()).padStart(2, '0');
+							const minutes = String(now.getMinutes()).padStart(2, '0');
+
+							body.date = `${year}-${month}-${day}`;
+							body.time = `${hours}:${minutes}`;
+							body.queue = true;
 						} else {
-							// For non-scheduled posts, use current date/time
-							// const now = new Date();
-							// const year = now.getFullYear();
-							// const month = String(now.getMonth() + 1).padStart(2, '0');
-							// const day = String(now.getDate()).padStart(2, '0');
-							// const hours = String(now.getHours()).padStart(2, '0');
-							// const minutes = String(now.getMinutes()).padStart(2, '0');
+							// For draft, use current date/time but no scheduling flags
+							const now = new Date();
+							const year = now.getFullYear();
+							const month = String(now.getMonth() + 1).padStart(2, '0');
+							const day = String(now.getDate()).padStart(2, '0');
+							const hours = String(now.getHours()).padStart(2, '0');
+							const minutes = String(now.getMinutes()).padStart(2, '0');
 
-							// dateStr = `${year}-${month}-${day}`;
-							// timeStr = `${hours}:${minutes}`;
-
-							// Set appropriate flags based on type
-							if (postType === 'schedule_now') {
-								body.schedule_now = true;
-							} else if (postType === 'queue') {
-								body.queue = true;
-							}
-							// 'draft' doesn't need any special flag
-						}
-
-						if (dateStr && timeStr) {
-							body.date = dateStr;
-							body.time = timeStr;
+							body.date = `${year}-${month}-${day}`;
+							body.time = `${hours}:${minutes}`;
+							// All flags remain false for draft
 						}
 
 						// Get versions from fixed collection
@@ -1273,20 +1282,68 @@ export class Mixpost implements INodeType {
 								version.content = [{ body: '', media: [] }];
 							}
 
-							// Handle provider options
+							// Handle provider options with correct structure based on API documentation
 							const optionsData = (versionItem.options as IDataObject) || {};
 							const optionItems = (optionsData.option as IDataObject[]) || [];
 
-							if (optionItems.length > 0) {
-								version.options = {};
+							// Initialize options with default structure from your config
+							version.options = {
+								facebook_page: {
+									type: 'post' // default value
+								},
+								instagram: {
+									type: 'post' // default value
+								},
+								linkedin: {
+									visibility: 'PUBLIC' // default value
+								},
+								mastodon: {
+									sensitive: false // default value
+								},
+								pinterest: {
+									link: null,
+									title: '',
+									boards: {}
+								},
+								youtube: {
+									title: null,
+									status: 'public'
+								},
+								gbp: {
+									type: 'post',
+									button: 'NONE',
+									button_link: '',
+									offer_has_details: false,
+									coupon_code: '',
+									offer_link: '',
+									terms: '',
+									event_title: '',
+									start_date: null,
+									end_date: null,
+									event_has_time: false,
+									start_time: '09:00',
+									end_time: '17:00'
+								},
+								tiktok: {
+									privacy_level: {},
+									allow_comments: {},
+									allow_duet: {},
+									allow_stitch: {},
+									content_disclosure: {},
+									brand_organic_toggle: {},
+									brand_content_toggle: {}
+								}
+							};
 
-								// Group options by provider and key
+							// Override with user-provided options if any
+							if (optionItems.length > 0) {
 								optionItems.forEach((optionItem) => {
 									const provider = optionItem.provider as string;
 									const key = optionItem.key as string;
 									let value = optionItem.value as string;
 
 									if (provider && key) {
+										// Create provider object if it doesn't exist
 										if (!version.options[provider]) {
 											version.options[provider] = {};
 										}
@@ -1296,7 +1353,9 @@ export class Mixpost implements INodeType {
 											version.options[provider][key] = true;
 										} else if (value === 'false') {
 											version.options[provider][key] = false;
-										} else if (!isNaN(Number(value))) {
+										} else if (value === 'null') {
+											version.options[provider][key] = null;
+										} else if (!isNaN(Number(value)) && value !== '') {
 											version.options[provider][key] = Number(value);
 										} else {
 											version.options[provider][key] = value;
@@ -1315,6 +1374,8 @@ export class Mixpost implements INodeType {
 								.split(',')
 								.map((id) => parseInt(id.trim()))
 								.filter((id) => !isNaN(id));
+						} else {
+							body.accounts = [];
 						}
 
 						// Handle tags array from main field
@@ -1324,7 +1385,15 @@ export class Mixpost implements INodeType {
 								.split(',')
 								.map((id) => parseInt(id.trim()))
 								.filter((id) => !isNaN(id));
+						} else {
+							body.tags = [];
 						}
+
+						// Debug logging
+						console.log('=== Mixpost Post Create Debug ===');
+						console.log('Post Type:', postType);
+						console.log('Request Body:', JSON.stringify(body, null, 2));
+						console.log('Endpoint:', endpoint);
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
 						const postUuid = this.getNodeParameter('postUuid', i) as string;
@@ -1464,7 +1533,30 @@ export class Mixpost implements INodeType {
 					requestOptions.body = body;
 				}
 
-				responseData = await this.helpers.httpRequest(requestOptions);
+				// Debug logging for request
+				console.log('=== Mixpost Request Debug ===');
+				console.log('Method:', requestOptions.method);
+				console.log('URL:', requestOptions.url);
+				console.log('Headers:', requestOptions.headers);
+				if (requestOptions.body && resource === 'post' && operation === 'create') {
+					console.log('Body:', JSON.stringify(requestOptions.body, null, 2));
+				}
+
+				try {
+					responseData = await this.helpers.httpRequest(requestOptions);
+				} catch (httpError: any) {
+					// Enhanced error logging
+					console.error('=== Mixpost Request Failed ===');
+					console.error('Status:', httpError.response?.status);
+					console.error('Status Text:', httpError.response?.statusText);
+					console.error('Response Data:', JSON.stringify(httpError.response?.data, null, 2));
+					console.error('Request Body was:', JSON.stringify(requestOptions.body, null, 2));
+					throw httpError;
+				}
+
+				// Debug logging for response
+				console.log('=== Mixpost Response Debug ===');
+				console.log('Response:', JSON.stringify(responseData, null, 2));
 
 				if (Array.isArray(responseData)) {
 					returnData.push(...responseData);
