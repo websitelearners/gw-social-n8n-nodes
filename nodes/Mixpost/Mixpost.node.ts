@@ -1243,21 +1243,7 @@ export class Mixpost implements INodeType {
 						const versionsData = this.getNodeParameter('versions', i) as IDataObject;
 						const versionItems = (versionsData.version as IDataObject[]) || [];
 						
-						// If no versions provided, create a default version
-						if (versionItems.length === 0) {
-							versionItems.push({
-								account_id: undefined,
-								is_original: true,
-								content: {
-									contentItem: [{
-										body: '',
-										media: '',
-										url: ''
-									}]
-								},
-								options: {}
-							});
-						}
+
 
 						// Handle accounts array from main field first to get account IDs
 						const accountIds = this.getNodeParameter('accountIds', i) as string;
@@ -1277,97 +1263,105 @@ export class Mixpost implements INodeType {
 						}
 
 						// Build versions array
-						body.versions = versionItems.map((versionItem, index) => {
-							const version: any = {
-								// Apply defaults for first version only
-								// Use the first account ID from the accounts array for default
-								account_id:
-									versionItem.account_id !== undefined
-										? versionItem.account_id
-										: index === 0 && accountIdsArray.length > 0
-										? accountIdsArray[0]
-										: null,
-								is_original:
-									versionItem.is_original !== undefined
-										? versionItem.is_original
-										: index === 0
-										? true
-										: false,
-								content: [],
-							};
+						// If user provided versions, use them; otherwise create default
+						if (versionItems.length > 0) {
+							body.versions = versionItems.map((versionItem, index) => {
+								const version: any = {
+									// For account_id, if not specified or is 0, don't include it
+									// This lets the API handle distribution to all accounts
+									is_original:
+										versionItem.is_original !== undefined
+											? versionItem.is_original
+											: index === 0
+											? true
+											: false,
+									content: [],
+								};
 
-							// Handle content as fixedCollection
-							const contentData = (versionItem.content as IDataObject) || {};
-							const contentItems = (contentData.contentItem as IDataObject[]) || [];
-
-							// Process each content item
-							version.content = contentItems.map((item) => {
-								const contentItem: any = {};
-
-								if (item.body !== undefined && item.body !== '') {
-									contentItem.body = item.body;
+								// Only add account_id if it's explicitly set and not 0
+								if (versionItem.account_id !== undefined && versionItem.account_id !== 0) {
+									version.account_id = versionItem.account_id;
 								}
 
-								if (item.url !== undefined && item.url !== '') {
-									contentItem.url = item.url;
-								}
+								// Handle content as fixedCollection
+								const contentData = (versionItem.content as IDataObject) || {};
+								const contentItems = (contentData.contentItem as IDataObject[]) || [];
 
-								// Handle media IDs - convert comma-separated string to array of numbers
-								if (item.media !== undefined && item.media !== '') {
-									contentItem.media = (item.media as string)
-										.split(',')
-										.map((id) => parseInt(id.trim()))
-										.filter((id) => !isNaN(id));
-								} else {
-									contentItem.media = [];
-								}
+								// Process each content item
+								version.content = contentItems.map((item) => {
+									const contentItem: any = {};
 
-								return contentItem;
-							});
-
-							// If no content items provided, add an empty content array
-							if (version.content.length === 0) {
-								version.content = [{ body: '', media: [] }];
-							}
-
-							// Handle provider options
-							const optionsData = (versionItem.options as IDataObject) || {};
-							const optionItems = (optionsData.option as IDataObject[]) || [];
-
-							if (optionItems.length > 0) {
-								version.options = {};
-
-								// Group options by provider and key
-								optionItems.forEach((optionItem) => {
-									const provider = optionItem.provider as string;
-									const key = optionItem.key as string;
-									let value = optionItem.value as string;
-
-									if (provider && key) {
-										if (!version.options[provider]) {
-											version.options[provider] = {};
-										}
-
-										// Try to parse value as boolean or number
-										if (value === 'true') {
-											version.options[provider][key] = true;
-										} else if (value === 'false') {
-											version.options[provider][key] = false;
-										} else if (!isNaN(Number(value))) {
-											version.options[provider][key] = Number(value);
-										} else {
-											version.options[provider][key] = value;
-										}
+									if (item.body !== undefined && item.body !== '') {
+										contentItem.body = item.body;
 									}
-								});
-							} else {
-								// Don't add default options if none provided
-								// The API will handle defaults on its own
-								version.options = {};
-							}
 
-							return version;
-						});
+									if (item.url !== undefined && item.url !== '') {
+										contentItem.url = item.url;
+									}
+
+									// Handle media IDs - convert comma-separated string to array of numbers
+									if (item.media !== undefined && item.media !== '') {
+										contentItem.media = (item.media as string)
+											.split(',')
+											.map((id) => parseInt(id.trim()))
+											.filter((id) => !isNaN(id));
+									} else {
+										contentItem.media = [];
+									}
+
+									return contentItem;
+								});
+
+								// If no content items provided, add an empty content array
+								if (version.content.length === 0) {
+									version.content = [{ body: '', media: [] }];
+								}
+
+								// Handle provider options
+								const optionsData = (versionItem.options as IDataObject) || {};
+								const optionItems = (optionsData.option as IDataObject[]) || [];
+
+								if (optionItems.length > 0) {
+									version.options = {};
+
+									// Group options by provider and key
+									optionItems.forEach((optionItem) => {
+										const provider = optionItem.provider as string;
+										const key = optionItem.key as string;
+										let value = optionItem.value as string;
+
+										if (provider && key) {
+											if (!version.options[provider]) {
+												version.options[provider] = {};
+											}
+
+											// Try to parse value as boolean or number
+											if (value === 'true') {
+												version.options[provider][key] = true;
+											} else if (value === 'false') {
+												version.options[provider][key] = false;
+											} else if (!isNaN(Number(value))) {
+												version.options[provider][key] = Number(value);
+											} else {
+												version.options[provider][key] = value;
+											}
+										}
+									});
+								}
+
+								return version;
+							});
+						} else {
+							// No versions provided - create a single default version for all accounts
+							body.versions = [{
+								is_original: true,
+								content: [{
+									body: '',
+									media: []
+								}],
+								options: {}
+							}];
+						}
 
 						// Set accounts array (already processed above)
 						body.accounts = accountIdsArray;
