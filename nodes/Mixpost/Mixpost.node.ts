@@ -1179,7 +1179,11 @@ export class Mixpost implements INodeType {
 
 							dateStr = `${year}-${month}-${day}`;
 							timeStr = `${hours}:${minutes}`;
+							
+							// Set scheduling flags for scheduled posts
 							body.schedule = true;
+							body.schedule_now = false;
+							body.queue = false;
 
 							if (dateStr && timeStr) {
 								body.date = dateStr;
@@ -1192,28 +1196,47 @@ export class Mixpost implements INodeType {
 							}
 						} else {
 							// For non-scheduled posts, use current date/time
-							// const now = new Date();
-							// const year = now.getFullYear();
-							// const month = String(now.getMonth() + 1).padStart(2, '0');
-							// const day = String(now.getDate()).padStart(2, '0');
-							// const hours = String(now.getHours()).padStart(2, '0');
-							// const minutes = String(now.getMinutes()).padStart(2, '0');
+							const now = new Date();
+							const year = now.getFullYear();
+							const month = String(now.getMonth() + 1).padStart(2, '0');
+							const day = String(now.getDate()).padStart(2, '0');
+							const hours = String(now.getHours()).padStart(2, '0');
+							const minutes = String(now.getMinutes()).padStart(2, '0');
 
-							// dateStr = `${year}-${month}-${day}`;
-							// timeStr = `${hours}:${minutes}`;
+							dateStr = `${year}-${month}-${day}`;
+							timeStr = `${hours}:${minutes}`;
 
 							// Set appropriate flags based on type
 							if (postType === 'schedule_now') {
 								body.schedule_now = true;
+								body.schedule = false;
+								body.queue = false;
 							} else if (postType === 'queue') {
 								body.queue = true;
+								body.schedule = false;
+								body.schedule_now = false;
+							} else if (postType === 'draft') {
+								// Draft posts should not have any scheduling flags
+								body.schedule = false;
+								body.schedule_now = false;
+								body.queue = false;
 							}
-							// 'draft' doesn't need any special flag
 						}
 
+						// Always include date and time in the request
 						if (dateStr && timeStr) {
 							body.date = dateStr;
 							body.time = timeStr;
+						} else {
+							// Default to current date/time if not set
+							const now = new Date();
+							body.date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+							body.time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+						}
+
+						// Set a default timezone if not provided
+						if (!body.timezone) {
+							body.timezone = 'UTC';
 						}
 
 						// Get versions from fixed collection
@@ -1315,6 +1338,13 @@ export class Mixpost implements INodeType {
 								.split(',')
 								.map((id) => parseInt(id.trim()))
 								.filter((id) => !isNaN(id));
+						} else {
+							// Accounts is required - throw error if not provided
+							throw new NodeOperationError(
+								this.getNode(),
+								'At least one account ID is required',
+								{ itemIndex: i },
+							);
 						}
 
 						// Handle tags array from main field
@@ -1324,6 +1354,8 @@ export class Mixpost implements INodeType {
 								.split(',')
 								.map((id) => parseInt(id.trim()))
 								.filter((id) => !isNaN(id));
+						} else {
+							body.tags = [];
 						}
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
