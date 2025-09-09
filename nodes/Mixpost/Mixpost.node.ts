@@ -529,7 +529,7 @@ export class Mixpost implements INodeType {
 								name: 'account_id',
 								type: 'number',
 								default: 0,
-								description: 'The account ID for this version (0 for first version)',
+								description: 'The account ID for this version (use the actual account ID from your accounts list, or leave as 0 to use the first account ID from the main accounts field)',
 							},
 							{
 								displayName: 'Is Original',
@@ -1242,16 +1242,50 @@ export class Mixpost implements INodeType {
 						// Get versions from fixed collection
 						const versionsData = this.getNodeParameter('versions', i) as IDataObject;
 						const versionItems = (versionsData.version as IDataObject[]) || [];
+						
+						// If no versions provided, create a default version
+						if (versionItems.length === 0) {
+							versionItems.push({
+								account_id: undefined,
+								is_original: true,
+								content: {
+									contentItem: [{
+										body: '',
+										media: '',
+										url: ''
+									}]
+								},
+								options: {}
+							});
+						}
+
+						// Handle accounts array from main field first to get account IDs
+						const accountIds = this.getNodeParameter('accountIds', i) as string;
+						let accountIdsArray: number[] = [];
+						if (accountIds) {
+							accountIdsArray = accountIds
+								.split(',')
+								.map((id) => parseInt(id.trim()))
+								.filter((id) => !isNaN(id));
+						} else {
+							// Accounts is required - throw error if not provided
+							throw new NodeOperationError(
+								this.getNode(),
+								'At least one account ID is required',
+								{ itemIndex: i },
+							);
+						}
 
 						// Build versions array
 						body.versions = versionItems.map((versionItem, index) => {
 							const version: any = {
 								// Apply defaults for first version only
+								// Use the first account ID from the accounts array for default
 								account_id:
 									versionItem.account_id !== undefined
 										? versionItem.account_id
-										: index === 0
-										? 0
+										: index === 0 && accountIdsArray.length > 0
+										? accountIdsArray[0]
 										: null,
 								is_original:
 									versionItem.is_original !== undefined
@@ -1327,32 +1361,16 @@ export class Mixpost implements INodeType {
 									}
 								});
 							} else {
-								// Add default options structure to match curl format
-								version.options = {
-									mastodon: {
-										sensitive: false
-									}
-								};
+								// Don't add default options if none provided
+								// The API will handle defaults on its own
+								version.options = {};
 							}
 
 							return version;
 						});
 
-						// Handle accounts array from main field
-						const accountIds = this.getNodeParameter('accountIds', i) as string;
-						if (accountIds) {
-							body.accounts = accountIds
-								.split(',')
-								.map((id) => parseInt(id.trim()))
-								.filter((id) => !isNaN(id));
-						} else {
-							// Accounts is required - throw error if not provided
-							throw new NodeOperationError(
-								this.getNode(),
-								'At least one account ID is required',
-								{ itemIndex: i },
-							);
-						}
+						// Set accounts array (already processed above)
+						body.accounts = accountIdsArray;
 
 						// Handle tags array from main field
 						const tagIds = this.getNodeParameter('tagIds', i, '') as string;
