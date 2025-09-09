@@ -529,7 +529,7 @@ export class Mixpost implements INodeType {
 								name: 'account_id',
 								type: 'number',
 								default: 0,
-								description: 'The account ID for this version (use the actual account ID from your accounts list, or leave as 0 to use the first account ID from the main accounts field)',
+								description: 'The account ID for this version (0 for first version)',
 							},
 							{
 								displayName: 'Is Original',
@@ -1179,11 +1179,7 @@ export class Mixpost implements INodeType {
 
 							dateStr = `${year}-${month}-${day}`;
 							timeStr = `${hours}:${minutes}`;
-							
-							// Set scheduling flags for scheduled posts
 							body.schedule = true;
-							body.schedule_now = false;
-							body.queue = false;
 
 							if (dateStr && timeStr) {
 								body.date = dateStr;
@@ -1196,178 +1192,130 @@ export class Mixpost implements INodeType {
 							}
 						} else {
 							// For non-scheduled posts, use current date/time
-							const now = new Date();
-							const year = now.getFullYear();
-							const month = String(now.getMonth() + 1).padStart(2, '0');
-							const day = String(now.getDate()).padStart(2, '0');
-							const hours = String(now.getHours()).padStart(2, '0');
-							const minutes = String(now.getMinutes()).padStart(2, '0');
+							// const now = new Date();
+							// const year = now.getFullYear();
+							// const month = String(now.getMonth() + 1).padStart(2, '0');
+							// const day = String(now.getDate()).padStart(2, '0');
+							// const hours = String(now.getHours()).padStart(2, '0');
+							// const minutes = String(now.getMinutes()).padStart(2, '0');
 
-							dateStr = `${year}-${month}-${day}`;
-							timeStr = `${hours}:${minutes}`;
+							// dateStr = `${year}-${month}-${day}`;
+							// timeStr = `${hours}:${minutes}`;
 
 							// Set appropriate flags based on type
 							if (postType === 'schedule_now') {
 								body.schedule_now = true;
-								body.schedule = false;
-								body.queue = false;
 							} else if (postType === 'queue') {
 								body.queue = true;
-								body.schedule = false;
-								body.schedule_now = false;
-							} else if (postType === 'draft') {
-								// Draft posts should not have any scheduling flags
-								body.schedule = false;
-								body.schedule_now = false;
-								body.queue = false;
 							}
+							// 'draft' doesn't need any special flag
 						}
 
-						// Always include date and time in the request
 						if (dateStr && timeStr) {
 							body.date = dateStr;
 							body.time = timeStr;
-						} else {
-							// Default to current date/time if not set
-							const now = new Date();
-							body.date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-							body.time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-						}
-
-						// Set a default timezone if not provided
-						if (!body.timezone) {
-							body.timezone = 'UTC';
 						}
 
 						// Get versions from fixed collection
 						const versionsData = this.getNodeParameter('versions', i) as IDataObject;
 						const versionItems = (versionsData.version as IDataObject[]) || [];
-						
 
+						// Build versions array
+						body.versions = versionItems.map((versionItem, index) => {
+							const version: any = {
+								// Apply defaults for first version only
+								account_id:
+									versionItem.account_id !== undefined
+										? versionItem.account_id
+										: index === 0
+										? 0
+										: null,
+								is_original:
+									versionItem.is_original !== undefined
+										? versionItem.is_original
+										: index === 0
+										? true
+										: false,
+								content: [],
+							};
 
-						// Handle accounts array from main field first to get account IDs
+							// Handle content as fixedCollection
+							const contentData = (versionItem.content as IDataObject) || {};
+							const contentItems = (contentData.contentItem as IDataObject[]) || [];
+
+							// Process each content item
+							version.content = contentItems.map((item) => {
+								const contentItem: any = {};
+
+								if (item.body !== undefined && item.body !== '') {
+									contentItem.body = item.body;
+								}
+
+								if (item.url !== undefined && item.url !== '') {
+									contentItem.url = item.url;
+								}
+
+								// Handle media IDs - convert comma-separated string to array of numbers
+								if (item.media !== undefined && item.media !== '') {
+									contentItem.media = (item.media as string)
+										.split(',')
+										.map((id) => parseInt(id.trim()))
+										.filter((id) => !isNaN(id));
+								} else {
+									contentItem.media = [];
+								}
+
+								return contentItem;
+							});
+
+							// If no content items provided, add an empty content array
+							if (version.content.length === 0) {
+								version.content = [{ body: '', media: [] }];
+							}
+
+							// Handle provider options
+							const optionsData = (versionItem.options as IDataObject) || {};
+							const optionItems = (optionsData.option as IDataObject[]) || [];
+
+							if (optionItems.length > 0) {
+								version.options = {};
+
+								// Group options by provider and key
+								optionItems.forEach((optionItem) => {
+									const provider = optionItem.provider as string;
+									const key = optionItem.key as string;
+									let value = optionItem.value as string;
+
+									if (provider && key) {
+										if (!version.options[provider]) {
+											version.options[provider] = {};
+										}
+
+										// Try to parse value as boolean or number
+										if (value === 'true') {
+											version.options[provider][key] = true;
+										} else if (value === 'false') {
+											version.options[provider][key] = false;
+										} else if (!isNaN(Number(value))) {
+											version.options[provider][key] = Number(value);
+										} else {
+											version.options[provider][key] = value;
+										}
+									}
+								});
+							}
+
+							return version;
+						});
+
+						// Handle accounts array from main field
 						const accountIds = this.getNodeParameter('accountIds', i) as string;
-						let accountIdsArray: number[] = [];
 						if (accountIds) {
-							accountIdsArray = accountIds
+							body.accounts = accountIds
 								.split(',')
 								.map((id) => parseInt(id.trim()))
 								.filter((id) => !isNaN(id));
-						} else {
-							// Accounts is required - throw error if not provided
-							throw new NodeOperationError(
-								this.getNode(),
-								'At least one account ID is required',
-								{ itemIndex: i },
-							);
 						}
-
-						// Build versions array
-						// If user provided versions, use them; otherwise create default
-						if (versionItems.length > 0) {
-							body.versions = versionItems.map((versionItem, index) => {
-								const version: any = {
-									// ALWAYS include account_id - required by API
-									// If not set or is 0, use the first account ID from accounts array
-									account_id:
-										versionItem.account_id !== undefined && versionItem.account_id !== 0
-											? versionItem.account_id
-											: accountIdsArray.length > 0
-											? accountIdsArray[0]
-											: 0,
-									is_original:
-										versionItem.is_original !== undefined
-											? versionItem.is_original
-											: index === 0
-											? true
-											: false,
-									content: [],
-								};
-
-								// Handle content as fixedCollection
-								const contentData = (versionItem.content as IDataObject) || {};
-								const contentItems = (contentData.contentItem as IDataObject[]) || [];
-
-								// Process each content item
-								version.content = contentItems.map((item) => {
-									const contentItem: any = {};
-
-									if (item.body !== undefined && item.body !== '') {
-										contentItem.body = item.body;
-									}
-
-									if (item.url !== undefined && item.url !== '') {
-										contentItem.url = item.url;
-									}
-
-									// Handle media IDs - convert comma-separated string to array of numbers
-									if (item.media !== undefined && item.media !== '') {
-										contentItem.media = (item.media as string)
-											.split(',')
-											.map((id) => parseInt(id.trim()))
-											.filter((id) => !isNaN(id));
-									} else {
-										contentItem.media = [];
-									}
-
-									return contentItem;
-								});
-
-								// If no content items provided, add an empty content array
-								if (version.content.length === 0) {
-									version.content = [{ body: '', media: [] }];
-								}
-
-								// Handle provider options
-								const optionsData = (versionItem.options as IDataObject) || {};
-								const optionItems = (optionsData.option as IDataObject[]) || [];
-
-								if (optionItems.length > 0) {
-									version.options = {};
-
-									// Group options by provider and key
-									optionItems.forEach((optionItem) => {
-										const provider = optionItem.provider as string;
-										const key = optionItem.key as string;
-										let value = optionItem.value as string;
-
-										if (provider && key) {
-											if (!version.options[provider]) {
-												version.options[provider] = {};
-											}
-
-											// Try to parse value as boolean or number
-											if (value === 'true') {
-												version.options[provider][key] = true;
-											} else if (value === 'false') {
-												version.options[provider][key] = false;
-											} else if (!isNaN(Number(value))) {
-												version.options[provider][key] = Number(value);
-											} else {
-												version.options[provider][key] = value;
-											}
-										}
-									});
-								}
-
-								return version;
-							});
-						} else {
-							// No versions provided - create a single default version for all accounts
-							// Use the first account ID as default
-							body.versions = [{
-								account_id: accountIdsArray.length > 0 ? accountIdsArray[0] : 0,
-								is_original: true,
-								content: [{
-									body: '',
-									media: []
-								}],
-								options: {}
-							}];
-						}
-
-						// Set accounts array (already processed above)
-						body.accounts = accountIdsArray;
 
 						// Handle tags array from main field
 						const tagIds = this.getNodeParameter('tagIds', i, '') as string;
@@ -1376,8 +1324,6 @@ export class Mixpost implements INodeType {
 								.split(',')
 								.map((id) => parseInt(id.trim()))
 								.filter((id) => !isNaN(id));
-						} else {
-							body.tags = [];
 						}
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
@@ -1517,14 +1463,6 @@ export class Mixpost implements INodeType {
 					requestOptions.headers['Content-Type'] = 'application/json';
 					requestOptions.body = body;
 				}
-
-				// Debug logging to console
-				console.log('=== MIXPOST API REQUEST DEBUG ===');
-				console.log('URL:', requestOptions.url);
-				console.log('Method:', requestOptions.method);
-				console.log('Headers:', requestOptions.headers);
-				console.log('Body:', JSON.stringify(requestOptions.body, null, 2));
-				console.log('================================');
 
 				responseData = await this.helpers.httpRequest(requestOptions);
 
