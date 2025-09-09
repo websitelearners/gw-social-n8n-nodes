@@ -529,7 +529,7 @@ export class Mixpost implements INodeType {
 								name: 'account_id',
 								type: 'number',
 								default: 0,
-								description: 'The account ID for this version (use the actual account ID from your accounts list, or leave as 0 to use the first account ID from the main accounts field)',
+								description: 'The account ID for this version (0 for first version)',
 							},
 							{
 								displayName: 'Is Original',
@@ -1161,10 +1161,12 @@ export class Mixpost implements INodeType {
 						// Get post type
 						const postType = this.getNodeParameter('postType', i) as string;
 
-						// Handle date and time based on post type
-						let dateStr = '';
-						let timeStr = '';
+						// Initialize all scheduling flags to false (important!)
+						body.schedule = false;
+						body.schedule_now = false;
+						body.queue = false;
 
+						// Handle date and time based on post type
 						if (postType === 'schedule') {
 							// Parse date and time from the datetime input
 							const dateTimeInput = this.getNodeParameter('date', i) as string;
@@ -1177,25 +1179,16 @@ export class Mixpost implements INodeType {
 							const hours = String(dateObj.getHours()).padStart(2, '0');
 							const minutes = String(dateObj.getMinutes()).padStart(2, '0');
 
-							dateStr = `${year}-${month}-${day}`;
-							timeStr = `${hours}:${minutes}`;
-							
-							// Set scheduling flags for scheduled posts
+							body.date = `${year}-${month}-${day}`;
+							body.time = `${hours}:${minutes}`;
 							body.schedule = true;
-							body.schedule_now = false;
-							body.queue = false;
-
-							if (dateStr && timeStr) {
-								body.date = dateStr;
-								body.time = timeStr;
-							}
 
 							const timezone = this.getNodeParameter('timezone', i, '') as string;
 							if (timezone) {
 								body.timezone = timezone;
 							}
-						} else {
-							// For non-scheduled posts, use current date/time
+						} else if (postType === 'schedule_now') {
+							// For schedule_now, we need current date/time
 							const now = new Date();
 							const year = now.getFullYear();
 							const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -1203,171 +1196,187 @@ export class Mixpost implements INodeType {
 							const hours = String(now.getHours()).padStart(2, '0');
 							const minutes = String(now.getMinutes()).padStart(2, '0');
 
-							dateStr = `${year}-${month}-${day}`;
-							timeStr = `${hours}:${minutes}`;
-
-							// Set appropriate flags based on type
-							if (postType === 'schedule_now') {
-								body.schedule_now = true;
-								body.schedule = false;
-								body.queue = false;
-							} else if (postType === 'queue') {
-								body.queue = true;
-								body.schedule = false;
-								body.schedule_now = false;
-							} else if (postType === 'draft') {
-								// Draft posts should not have any scheduling flags
-								body.schedule = false;
-								body.schedule_now = false;
-								body.queue = false;
-							}
-						}
-
-						// Always include date and time in the request
-						if (dateStr && timeStr) {
-							body.date = dateStr;
-							body.time = timeStr;
-						} else {
-							// Default to current date/time if not set
+							body.date = `${year}-${month}-${day}`;
+							body.time = `${hours}:${minutes}`;
+							body.schedule_now = true;
+						} else if (postType === 'queue') {
+							// For queue, we need current date/time
 							const now = new Date();
-							body.date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-							body.time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-						}
+							const year = now.getFullYear();
+							const month = String(now.getMonth() + 1).padStart(2, '0');
+							const day = String(now.getDate()).padStart(2, '0');
+							const hours = String(now.getHours()).padStart(2, '0');
+							const minutes = String(now.getMinutes()).padStart(2, '0');
 
-						// Set a default timezone if not provided
-						if (!body.timezone) {
-							body.timezone = 'UTC';
+							body.date = `${year}-${month}-${day}`;
+							body.time = `${hours}:${minutes}`;
+							body.queue = true;
+						} else {
+							// For draft, use current date/time but no scheduling flags
+							const now = new Date();
+							const year = now.getFullYear();
+							const month = String(now.getMonth() + 1).padStart(2, '0');
+							const day = String(now.getDate()).padStart(2, '0');
+							const hours = String(now.getHours()).padStart(2, '0');
+							const minutes = String(now.getMinutes()).padStart(2, '0');
+
+							body.date = `${year}-${month}-${day}`;
+							body.time = `${hours}:${minutes}`;
+							// All flags remain false for draft
 						}
 
 						// Get versions from fixed collection
 						const versionsData = this.getNodeParameter('versions', i) as IDataObject;
 						const versionItems = (versionsData.version as IDataObject[]) || [];
-						
 
+						// Build versions array
+						body.versions = versionItems.map((versionItem, index) => {
+							const version: any = {
+								// Apply defaults for first version only
+								account_id:
+									versionItem.account_id !== undefined
+										? versionItem.account_id
+										: index === 0
+										? 0
+										: null,
+								is_original:
+									versionItem.is_original !== undefined
+										? versionItem.is_original
+										: index === 0
+										? true
+										: false,
+								content: [],
+							};
 
-						// Handle accounts array from main field first to get account IDs
+							// Handle content as fixedCollection
+							const contentData = (versionItem.content as IDataObject) || {};
+							const contentItems = (contentData.contentItem as IDataObject[]) || [];
+
+							// Process each content item
+							version.content = contentItems.map((item) => {
+								const contentItem: any = {};
+
+								if (item.body !== undefined && item.body !== '') {
+									contentItem.body = item.body;
+								}
+
+								if (item.url !== undefined && item.url !== '') {
+									contentItem.url = item.url;
+								}
+
+								// Handle media IDs - convert comma-separated string to array of numbers
+								if (item.media !== undefined && item.media !== '') {
+									contentItem.media = (item.media as string)
+										.split(',')
+										.map((id) => parseInt(id.trim()))
+										.filter((id) => !isNaN(id));
+								} else {
+									contentItem.media = [];
+								}
+
+								return contentItem;
+							});
+
+							// If no content items provided, add an empty content array
+							if (version.content.length === 0) {
+								version.content = [{ body: '', media: [] }];
+							}
+
+							// Handle provider options with correct structure based on API documentation
+							const optionsData = (versionItem.options as IDataObject) || {};
+							const optionItems = (optionsData.option as IDataObject[]) || [];
+
+							// Initialize options with default structure from your config
+							version.options = {
+								facebook_page: {
+									type: 'post' // default value
+								},
+								instagram: {
+									type: 'post' // default value
+								},
+								linkedin: {
+									visibility: 'PUBLIC' // default value
+								},
+								mastodon: {
+									sensitive: false // default value
+								},
+								pinterest: {
+									link: null,
+									title: '',
+									boards: {}
+								},
+								youtube: {
+									title: null,
+									status: 'public'
+								},
+								gbp: {
+									type: 'post',
+									button: 'NONE',
+									button_link: '',
+									offer_has_details: false,
+									coupon_code: '',
+									offer_link: '',
+									terms: '',
+									event_title: '',
+									start_date: null,
+									end_date: null,
+									event_has_time: false,
+									start_time: '09:00',
+									end_time: '17:00'
+								},
+								tiktok: {
+									privacy_level: {},
+									allow_comments: {},
+									allow_duet: {},
+									allow_stitch: {},
+									content_disclosure: {},
+									brand_organic_toggle: {},
+									brand_content_toggle: {}
+								}
+							};
+
+							// Override with user-provided options if any
+							if (optionItems.length > 0) {
+								optionItems.forEach((optionItem) => {
+									const provider = optionItem.provider as string;
+									const key = optionItem.key as string;
+									let value = optionItem.value as string;
+
+									if (provider && key) {
+										// Create provider object if it doesn't exist
+										if (!version.options[provider]) {
+											version.options[provider] = {};
+										}
+
+										// Try to parse value as boolean or number
+										if (value === 'true') {
+											version.options[provider][key] = true;
+										} else if (value === 'false') {
+											version.options[provider][key] = false;
+										} else if (value === 'null') {
+											version.options[provider][key] = null;
+										} else if (!isNaN(Number(value)) && value !== '') {
+											version.options[provider][key] = Number(value);
+										} else {
+											version.options[provider][key] = value;
+										}
+									}
+								});
+							}
+
+							return version;
+						});
+
+						// Handle accounts array from main field
 						const accountIds = this.getNodeParameter('accountIds', i) as string;
-						let accountIdsArray: number[] = [];
 						if (accountIds) {
-							accountIdsArray = accountIds
+							body.accounts = accountIds
 								.split(',')
 								.map((id) => parseInt(id.trim()))
 								.filter((id) => !isNaN(id));
 						} else {
-							// Accounts is required - throw error if not provided
-							throw new NodeOperationError(
-								this.getNode(),
-								'At least one account ID is required',
-								{ itemIndex: i },
-							);
+							body.accounts = [];
 						}
-
-						// Build versions array
-						// If user provided versions, use them; otherwise create default
-						if (versionItems.length > 0) {
-							body.versions = versionItems.map((versionItem, index) => {
-								const version: any = {
-									// ALWAYS include account_id - required by API
-									// If not set or is 0, use the first account ID from accounts array
-									account_id:
-										versionItem.account_id !== undefined && versionItem.account_id !== 0
-											? versionItem.account_id
-											: accountIdsArray.length > 0
-											? accountIdsArray[0]
-											: 0,
-									is_original:
-										versionItem.is_original !== undefined
-											? versionItem.is_original
-											: index === 0
-											? true
-											: false,
-									content: [],
-								};
-
-								// Handle content as fixedCollection
-								const contentData = (versionItem.content as IDataObject) || {};
-								const contentItems = (contentData.contentItem as IDataObject[]) || [];
-
-								// Process each content item
-								version.content = contentItems.map((item) => {
-									const contentItem: any = {};
-
-									if (item.body !== undefined && item.body !== '') {
-										contentItem.body = item.body;
-									}
-
-									if (item.url !== undefined && item.url !== '') {
-										contentItem.url = item.url;
-									}
-
-									// Handle media IDs - convert comma-separated string to array of numbers
-									if (item.media !== undefined && item.media !== '') {
-										contentItem.media = (item.media as string)
-											.split(',')
-											.map((id) => parseInt(id.trim()))
-											.filter((id) => !isNaN(id));
-									} else {
-										contentItem.media = [];
-									}
-
-									return contentItem;
-								});
-
-								// If no content items provided, add an empty content array
-								if (version.content.length === 0) {
-									version.content = [{ body: '', media: [] }];
-								}
-
-								// Handle provider options
-								const optionsData = (versionItem.options as IDataObject) || {};
-								const optionItems = (optionsData.option as IDataObject[]) || [];
-
-								if (optionItems.length > 0) {
-									version.options = {};
-
-									// Group options by provider and key
-									optionItems.forEach((optionItem) => {
-										const provider = optionItem.provider as string;
-										const key = optionItem.key as string;
-										let value = optionItem.value as string;
-
-										if (provider && key) {
-											if (!version.options[provider]) {
-												version.options[provider] = {};
-											}
-
-											// Try to parse value as boolean or number
-											if (value === 'true') {
-												version.options[provider][key] = true;
-											} else if (value === 'false') {
-												version.options[provider][key] = false;
-											} else if (!isNaN(Number(value))) {
-												version.options[provider][key] = Number(value);
-											} else {
-												version.options[provider][key] = value;
-											}
-										}
-									});
-								}
-
-								return version;
-							});
-						} else {
-							// No versions provided - create a single default version for all accounts
-							// Use the first account ID as default
-							body.versions = [{
-								account_id: accountIdsArray.length > 0 ? accountIdsArray[0] : 0,
-								is_original: true,
-								content: [{
-									body: '',
-									media: []
-								}],
-								options: {}
-							}];
-						}
-
-						// Set accounts array (already processed above)
-						body.accounts = accountIdsArray;
 
 						// Handle tags array from main field
 						const tagIds = this.getNodeParameter('tagIds', i, '') as string;
@@ -1379,6 +1388,12 @@ export class Mixpost implements INodeType {
 						} else {
 							body.tags = [];
 						}
+
+						// Debug logging
+						console.log('=== Mixpost Post Create Debug ===');
+						console.log('Post Type:', postType);
+						console.log('Request Body:', JSON.stringify(body, null, 2));
+						console.log('Endpoint:', endpoint);
 					} else if (operation === 'get') {
 						requestMethod = 'GET';
 						const postUuid = this.getNodeParameter('postUuid', i) as string;
@@ -1518,15 +1533,30 @@ export class Mixpost implements INodeType {
 					requestOptions.body = body;
 				}
 
-				// Debug logging to console
-				console.log('=== MIXPOST API REQUEST DEBUG ===');
-				console.log('URL:', requestOptions.url);
+				// Debug logging for request
+				console.log('=== Mixpost Request Debug ===');
 				console.log('Method:', requestOptions.method);
+				console.log('URL:', requestOptions.url);
 				console.log('Headers:', requestOptions.headers);
-				console.log('Body:', JSON.stringify(requestOptions.body, null, 2));
-				console.log('================================');
+				if (requestOptions.body && resource === 'post' && operation === 'create') {
+					console.log('Body:', JSON.stringify(requestOptions.body, null, 2));
+				}
 
-				responseData = await this.helpers.httpRequest(requestOptions);
+				try {
+					responseData = await this.helpers.httpRequest(requestOptions);
+				} catch (httpError: any) {
+					// Enhanced error logging
+					console.error('=== Mixpost Request Failed ===');
+					console.error('Status:', httpError.response?.status);
+					console.error('Status Text:', httpError.response?.statusText);
+					console.error('Response Data:', JSON.stringify(httpError.response?.data, null, 2));
+					console.error('Request Body was:', JSON.stringify(requestOptions.body, null, 2));
+					throw httpError;
+				}
+
+				// Debug logging for response
+				console.log('=== Mixpost Response Debug ===');
+				console.log('Response:', JSON.stringify(responseData, null, 2));
 
 				if (Array.isArray(responseData)) {
 					returnData.push(...responseData);
