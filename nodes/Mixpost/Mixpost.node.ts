@@ -1267,8 +1267,14 @@ export class Mixpost implements INodeType {
 						if (versionItems.length > 0) {
 							body.versions = versionItems.map((versionItem, index) => {
 								const version: any = {
-									// For account_id, if not specified or is 0, don't include it
-									// This lets the API handle distribution to all accounts
+									// ALWAYS include account_id - required by API
+									// If not set or is 0, use the first account ID from accounts array
+									account_id:
+										versionItem.account_id !== undefined && versionItem.account_id !== 0
+											? versionItem.account_id
+											: accountIdsArray.length > 0
+											? accountIdsArray[0]
+											: 0,
 									is_original:
 										versionItem.is_original !== undefined
 											? versionItem.is_original
@@ -1277,11 +1283,6 @@ export class Mixpost implements INodeType {
 											: false,
 									content: [],
 								};
-
-								// Only add account_id if it's explicitly set and not 0
-								if (versionItem.account_id !== undefined && versionItem.account_id !== 0) {
-									version.account_id = versionItem.account_id;
-								}
 
 								// Handle content as fixedCollection
 								const contentData = (versionItem.content as IDataObject) || {};
@@ -1353,7 +1354,9 @@ export class Mixpost implements INodeType {
 							});
 						} else {
 							// No versions provided - create a single default version for all accounts
+							// Use the first account ID as default
 							body.versions = [{
+								account_id: accountIdsArray.length > 0 ? accountIdsArray[0] : 0,
 								is_original: true,
 								content: [{
 									body: '',
