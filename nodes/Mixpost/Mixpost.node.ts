@@ -1326,6 +1326,13 @@ export class Mixpost implements INodeType {
 										}
 									}
 								});
+							} else {
+								// Add default options structure to match curl format
+								version.options = {
+									mastodon: {
+										sensitive: false
+									}
+								};
 							}
 
 							return version;
@@ -1495,6 +1502,14 @@ export class Mixpost implements INodeType {
 					requestOptions.headers['Content-Type'] = 'application/json';
 					requestOptions.body = body;
 				}
+
+				// Debug logging to console
+				console.log('=== MIXPOST API REQUEST DEBUG ===');
+				console.log('URL:', requestOptions.url);
+				console.log('Method:', requestOptions.method);
+				console.log('Headers:', requestOptions.headers);
+				console.log('Body:', JSON.stringify(requestOptions.body, null, 2));
+				console.log('================================');
 
 				responseData = await this.helpers.httpRequest(requestOptions);
 
