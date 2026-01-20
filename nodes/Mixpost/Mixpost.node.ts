@@ -1076,12 +1076,34 @@ export class Mixpost implements INodeType {
 						requestMethod = 'POST';
 						endpoint = `/api/${workspaceUuid}/media`;
 
-						// Get the binary property name from the node parameter
-						const binaryPropertyName = this.getNodeParameter(
-							'binaryPropertyName',
-							i,
-							'data',
-						) as string;
+						// Get the binary property parameter - could be string or object
+						const binaryPropertyParam = this.getNodeParameter('binaryPropertyName', i, 'data');
+
+						let binaryPropertyName: string;
+
+						// Handle both string property name and binary object input
+						if (typeof binaryPropertyParam === 'string') {
+							// User provided property name as string (e.g., "data")
+							binaryPropertyName = binaryPropertyParam;
+						} else if (typeof binaryPropertyParam === 'object' && binaryPropertyParam !== null) {
+							// User provided the binary object itself (e.g., {{ $input.item.binary }})
+							// Get the first property name from the object
+							const keys = Object.keys(binaryPropertyParam);
+							if (keys.length === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Binary object is empty - no binary data found',
+									{ itemIndex: i },
+								);
+							}
+							binaryPropertyName = keys[0];
+						} else {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Binary Property must be a string (property name) or a binary object',
+								{ itemIndex: i },
+							);
+						}
 
 						// Validate binary data exists
 						this.helpers.assertBinaryData(i, binaryPropertyName);
