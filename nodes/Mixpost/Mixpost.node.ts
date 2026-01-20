@@ -7,6 +7,7 @@ import {
 	NodeConnectionType,
 	NodeOperationError,
 } from 'n8n-workflow';
+import FormData from 'form-data';
 
 export class Mixpost implements INodeType {
 	description: INodeTypeDescription = {
@@ -293,10 +294,10 @@ export class Mixpost implements INodeType {
 				description: 'Comma-separated list of media IDs to delete',
 			},
 			{
-				displayName: 'File',
-				name: 'file',
+				displayName: 'Binary Property',
+				name: 'binaryPropertyName',
 				type: 'string',
-				default: '',
+				default: 'data',
 				required: true,
 				displayOptions: {
 					show: {
@@ -304,7 +305,7 @@ export class Mixpost implements INodeType {
 						operation: ['upload'],
 					},
 				},
-				description: 'Binary property containing the file to upload',
+				description: 'Name of the binary property containing the file to upload',
 			},
 			{
 				displayName: 'Update Fields',
@@ -1075,29 +1076,41 @@ export class Mixpost implements INodeType {
 						requestMethod = 'POST';
 						endpoint = `/api/${workspaceUuid}/media`;
 
-						const dataBinary = this.getNodeParameter('file', i, 'data') as any;
+						// Get the binary property name from the node parameter
+						const binaryPropertyName = this.getNodeParameter(
+							'binaryPropertyName',
+							i,
+							'data',
+						) as string;
 
-						if (
-							!dataBinary?.data ||
-							!dataBinary.data.data ||
-							!dataBinary.data.mimeType ||
-							!dataBinary.data.fileName
-						) {
+						// Validate binary data exists
+						this.helpers.assertBinaryData(i, binaryPropertyName);
+
+						// Get binary metadata from the input item
+						const binaryData = items[i].binary?.[binaryPropertyName];
+						if (!binaryData) {
 							throw new NodeOperationError(
 								this.getNode(),
-								`Unsupported file: not binary or missing one or more required attributes (data, mimeType, fileName)`,
+								`No binary data found for property "${binaryPropertyName}"`,
 								{ itemIndex: i },
 							);
 						}
 
-						const blob = new Blob([Buffer.from(dataBinary.data.data, 'base64')], {
-							type: dataBinary.data.mimeType,
+						// Get the actual binary buffer using n8n's helper
+						const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
+
+						// Extract file metadata
+						const fileName = binaryData.fileName || 'file';
+						const mimeType = binaryData.mimeType || 'application/octet-stream';
+
+						// Create FormData with proper file attachment
+						const formData = new FormData();
+						formData.append('file', fileBuffer, {
+							filename: fileName,
+							contentType: mimeType,
 						});
 
-						const formData = new FormData();
-						formData.append('file', blob, dataBinary.data.fileName);
-
-						// Set form data instead of JSON body
+						// Set form data as body
 						body = formData;
 					} else if (operation === 'update') {
 						requestMethod = 'PUT';
@@ -1289,25 +1302,25 @@ export class Mixpost implements INodeType {
 							// Initialize options with default structure from your config
 							version.options = {
 								facebook_page: {
-									type: 'post' // default value
+									type: 'post', // default value
 								},
 								instagram: {
-									type: 'post' // default value
+									type: 'post', // default value
 								},
 								linkedin: {
-									visibility: 'PUBLIC' // default value
+									visibility: 'PUBLIC', // default value
 								},
 								mastodon: {
-									sensitive: false // default value
+									sensitive: false, // default value
 								},
 								pinterest: {
 									link: null,
 									title: '',
-									boards: {}
+									boards: {},
 								},
 								youtube: {
 									title: null,
-									status: 'public'
+									status: 'public',
 								},
 								gbp: {
 									type: 'post',
@@ -1322,7 +1335,7 @@ export class Mixpost implements INodeType {
 									end_date: null,
 									event_has_time: false,
 									start_time: '09:00',
-									end_time: '17:00'
+									end_time: '17:00',
 								},
 								tiktok: {
 									privacy_level: {},
@@ -1331,8 +1344,8 @@ export class Mixpost implements INodeType {
 									allow_stitch: {},
 									content_disclosure: {},
 									brand_organic_toggle: {},
-									brand_content_toggle: {}
-								}
+									brand_content_toggle: {},
+								},
 							};
 
 							// Override with user-provided options if any
@@ -1525,7 +1538,12 @@ export class Mixpost implements INodeType {
 
 				// Handle different body types
 				if (resource === 'media' && operation === 'upload') {
-					// For FormData uploads, body is FormData object - httpRequest handles this automatically
+					// For FormData uploads, merge FormData headers (includes Content-Type with boundary)
+					const formDataHeaders = (body as FormData).getHeaders();
+					requestOptions.headers = {
+						...requestOptions.headers,
+						...formDataHeaders,
+					};
 					requestOptions.body = body;
 				} else if (Object.keys(body).length > 0) {
 					// For JSON requests
