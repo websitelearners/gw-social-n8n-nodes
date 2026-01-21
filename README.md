@@ -1,5 +1,8 @@
 # n8n-nodes-gravitysocial
 
+[![npm version](https://img.shields.io/npm/v/n8n-nodes-gravitysocial.svg)](https://www.npmjs.com/package/n8n-nodes-gravitysocial)
+[![npm downloads](https://img.shields.io/npm/dm/n8n-nodes-gravitysocial.svg)](https://www.npmjs.com/package/n8n-nodes-gravitysocial)
+
 This is an n8n community node that lets you integrate [GravitySocial](https://social.gravitywrite.com) with your n8n workflows.
 
 GravitySocial is a self-hosted social media management software that helps you schedule and manage your social media content across multiple platforms including Facebook, Twitter/X, Instagram, LinkedIn, Pinterest, TikTok, YouTube, and more.
